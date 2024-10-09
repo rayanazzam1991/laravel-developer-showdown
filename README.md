@@ -1,66 +1,71 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Description 
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel-based solution to manage API requests efficiently within rate limits.
+The system ensures user attributes are updated in sync with a third-party API while adhering to request limits:
+50 batch requests per hour (1,000 records per batch) and 3,600 individual requests per hour.
 
-## About Laravel
+The solution processes approximately 40,000 updates per hour, making optimal use of batch processing to stay within API limits.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## User Requirements
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Detect when a user’s data has changed and trigger an update action to sync with the third-party provider.
+- Group user updates and send them in batches to the third-party API to minimize the number of API calls and stay within the rate limits.
+- Queue and store user update data when API rate limits are reached, ensuring the updates are sent later once the limit resets.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Nice to have 
+- Error Handling: How errors from the third-party API (e.g., failed batch requests) should be handled, including retry mechanisms.
+- Logging: Requirements for logging API calls and responses for monitoring and troubleshooting.
 
-## Learning Laravel
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+# Implementation
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+1. User Data Change Detection & Event Trigger:
+      - Action/Events: Every time a user updates their data, an event is triggered to check if any relevant fields have changed.
+      - Queue Entry: If changes are detected, the updated data is stored in a database queue table, marking it for processing.
+2. Queue Design:
+      - Database Choice: MySQL is a good choice for this type of system, especially since you’re not dealing with real-time messaging.
+        - Table Structure:
+          - AutoIncrementID: Unique identifier for each record.
+          - BatchID: Groups of 1,000 records to facilitate batch processing. This increments every 1,000 entries.
+          - Payload: Contains the user’s updated data, consider using JSON or a serialized format for the payload to store multiple attributes easily.
+          - Status: A status flag (0 for unsent/failed, 1 for sent successfully).
+          - Timestamps: Add created_at and updated_at fields to track when the record was queued and when it was last processed.
+          - Retry Count: Consider adding a retry_count field to avoid retrying indefinitely for records that keep failing.
+3. Batch Processing:
+      - Batch Size: Group user data into batches of 1,000 records, keeping track of the BatchID.
+      - Triggering the Batch: When a new record is added to the queue, check if the batch size has reached 1,000. If so, send the batch to the third-party API.
+      - Handling Responses:
+        - If the API response is successful (OK), mark the batch’s records with status = 1.
+        - If the response fails, do not update the status and log the error for retry later.
+4. Cron Job for Failures:
+      - Cron Frequency: we will be firing the cron job every hour or at specific times of low traffic.
+      - Five-Minute Early Execution: Running the cron job five minutes before the hour ends to handle remaining records.
+      - Retry Logic: The cron job will:
+        - Check for any records with status = 0 (failed) and attempt to resend them.
+        - Send records in batches until the API limit is reached.
+        - Keep unprocessed records in the queue if the limit is exceeded and process them in the next hour.
+5. Rate Limit Awareness:
+      - API Rate Limits: Since we are handling 40,000 calls per hour (including retries),
+        we need to track the API rate usage carefully, so I will store information about limits in an In-memory Data Store like Redis,
+      - Store Rate Limits data:
+        - Total API calls made in the current hour (for both batch and individual requests).
+        - Remaining API calls allowed.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Extra ###
+Monitoring & Alerts:
+   - Logging: Implement robust logging for both successful and failed API calls. This will help with debugging and performance monitoring.
+   - Alert System: Set up alerts to notify you if there are persistent failures in sending data or if records remain in the queue for too long without being processed.
 
-## Laravel Sponsors
+## Important: 
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+**Handling Large Volumes (for later)**
+- Dynamic Cron Triggering: You could further optimize the cron job by dynamically adjusting its frequency based on the current load. For example, if the queue grows faster than expected, the cron job could run more frequently within the hour. 
+ However,rather than relying on “guessing” the low-traffic times, you can use historical data and traffic analysis to fine-tune the optimal cron run times.
+- Scaling Consideration: In high-traffic systems, you may need to consider partitioning the queue table to improve performance or archiving old data after successful API calls to keep the table efficient. 
+- Queue Backup: Consider implementing queue backup strategies (e.g., offloading old records to another table or a different storage system) in case your MySQL queue grows too large due to temporary API failures.
+- Queue System : For now, using a database-backed queue is a perfectly fine solution for handling 40,000 calls per hour. It’s simple, cost-effective, and easy to implement with the tools you already have.
+However, as traffic increases or the system becomes more complex I advise transitioning to a dedicated message queue like RabbitMQ, Redis, or AWS SQS will give you more scalability, flexibility, and robustness.
 
-### Premium Partners
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
 
-## Contributing
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
