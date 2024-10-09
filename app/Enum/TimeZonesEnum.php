@@ -4,7 +4,7 @@ namespace App\Enum;
 
 use App\Traits\EnumValues;
 
-enum TimeZonesEnum : string
+enum TimeZonesEnum: string
 {
     use EnumValues;
     case CET = 'CET';

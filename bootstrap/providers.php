@@ -1,6 +1,6 @@
 <?php
 
-use App\Features\SyncUserAttributes\Providers\SyncUserAttributeServiceProvider;
+use App\Features\SyncUserAttributes\Application\Providers\SyncUserAttributeServiceProvider;
 
 return [
     App\Providers\AppServiceProvider::class,

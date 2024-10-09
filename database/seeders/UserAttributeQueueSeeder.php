@@ -2,8 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Features\SyncUserAttributes\Repository\Eloquent\Model\UserAttributeQueue;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Features\SyncUserAttributes\Infrastructure\Repository\Eloquent\Model\UserAttributeQueue;
 use Illuminate\Database\Seeder;
 
 class UserAttributeQueueSeeder extends Seeder

@@ -62,7 +62,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', \App\Features\SyncUserAttributes\Repository\Eloquent\Model\User::class),
+            'model' => env('AUTH_MODEL', \App\Features\SyncUserAttributes\Infrastructure\Repository\Eloquent\Model\User::class),
         ],
 
         // 'users' => [

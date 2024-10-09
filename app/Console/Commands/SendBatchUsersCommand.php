@@ -2,11 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Features\SyncUserAttributes\Events\UserAttributesBatchReady;
-use App\Features\SyncUserAttributes\Repository\Eloquent\Model\User;
-use App\Features\SyncUserAttributes\Repository\Eloquent\Model\UserAttributeQueue;
+use App\Features\SyncUserAttributes\Infrastructure\Repository\Eloquent\Model\User;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
 
 class SendBatchUsersCommand extends Command
 {
@@ -29,14 +26,20 @@ class SendBatchUsersCommand extends Command
      */
     public function handle(): int
     {
-//        Artisan::call('db:seed', [
-//            '--class' => 'UserAttributeQueueSeeder'
-//        ]);
-        $times = $this->ask('How many times you want to trigger changes', 2000);
+        // Ask for the number of times to trigger changes
+        $times = $this->ask('How many times do you want to trigger changes', '2000');
 
-        $users = User::query()->get();
-        for ($i = 0; $i < $times; $i++) {
-            foreach ($users as $user) {
+        // Check if the input is numeric and greater than 0
+        if (! is_numeric($times) || intval($times) <= 0) {
+            $this->error('The number of times must be a positive integer.');
+
+            return 1; // Indicate an error
+        }
+
+        $users = User::all(); // Fetch all users
+
+        foreach ($users as $user) {
+            for ($i = 0; $i < intval($times); $i++) {
                 // Update the fields
                 $user->first_name = fake()->firstName();
                 $user->last_name = fake()->lastName();
@@ -46,10 +49,9 @@ class SendBatchUsersCommand extends Command
             }
         }
 
-
         // Provide feedback
-        $this->info("Users attributes has been synced successfully.");
+        $this->info('User attributes have been synced successfully.');
 
-        return 0;
+        return 0; // Indicate success
     }
 }
