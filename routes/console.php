@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::call(function () {
     $service = resolve(ManageUserAttributeChanges::class);
     $service->removeSyncedUserAttributes();
-})->everyMinute();
+})->everyTwoHours();
 
 Schedule::call(function () {
     $service = resolve(SyncUserAttributesInterface::class);
     $service->syncMissedOrFailedData();
-})->everyMinute();
+})->hourly();

@@ -6,6 +6,8 @@ interface ApiLimitsInterface
 {
     public function initBatchUsage(): void;
 
+    public function resetBatchUsage(): void;
+
     public function getCurrentBatchUsage(): int;
 
     public function incrementBatchUsage(): void;

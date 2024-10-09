@@ -18,6 +18,17 @@ class ApiLimitsRepository implements ApiLimitsInterface
         }
     }
 
+    public function resetBatchUsage(): void
+    {
+        $batchKey = $this->getBatchKey();
+        // Check if the key exists
+        if (Redis::exists($batchKey)) {
+            // Set the key with an initial value of 0 and a TTL of 1 hour (3600 seconds)
+            Redis::set($batchKey, 0);
+            Redis::expire($batchKey, 3600); // Set expiration for 1 hour
+        }
+    }
+
     public function getCurrentBatchUsage(): int
     {
         $batchKey = $this->getBatchKey();

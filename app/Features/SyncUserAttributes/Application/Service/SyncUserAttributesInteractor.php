@@ -75,7 +75,7 @@ readonly class SyncUserAttributesInteractor implements SyncUserAttributesInterfa
         // init the Api request limit
         $this->apiLimits->initBatchUsage();
 
-        Log::info('Current Api usage: ', [$this->apiLimits->getCurrentBatchUsage()]);
+        Log::info('Current Api usage before sending : ', [$this->apiLimits->getCurrentBatchUsage()]);
 
         if ($this->apiLimits->getCurrentBatchUsage() >= SyncApiParametersEnum::MAX_BATCH_RPH->value) {
 
@@ -90,6 +90,8 @@ readonly class SyncUserAttributesInteractor implements SyncUserAttributesInterfa
 
         // increment api usage
         $this->apiLimits->incrementBatchUsage();
+
+        Log::info('Current Api usage before sending : ', [$this->apiLimits->getCurrentBatchUsage()]);
 
         return response()->json([
             'status' => 'ok',

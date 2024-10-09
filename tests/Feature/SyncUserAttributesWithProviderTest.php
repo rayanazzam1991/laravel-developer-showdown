@@ -66,7 +66,7 @@ it('syncs ready data and updates status', function () {
     // Mock the API limits interface
     $apiLimits = mock(ApiLimitsInterface::class, function (MockInterface $mock) {
         $mock->shouldReceive('initBatchUsage')->once();
-        $mock->shouldReceive('getCurrentBatchUsage')->twice()->andReturn(0);
+        $mock->shouldReceive('getCurrentBatchUsage')->times(3)->andReturn(0);
         $mock->shouldReceive('incrementBatchUsage')->once();
     });
 
@@ -106,7 +106,7 @@ it('syncs missed or failed data and updates status', function () {
     // Mock the API limits interface
     $apiLimits = mock(ApiLimitsInterface::class, function (MockInterface $mock) {
         $mock->shouldReceive('initBatchUsage')->once();
-        $mock->shouldReceive('getCurrentBatchUsage')->twice()->andReturn(0);
+        $mock->shouldReceive('getCurrentBatchUsage')->times(3)->andReturn(0);
         $mock->shouldReceive('incrementBatchUsage')->once();
     });
 
